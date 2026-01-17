@@ -1,17 +1,22 @@
-use crate::{generate::polynomial::Polynomial, generate::polynomial::Commit, setup::PublicKey};
+use crate::{generate::polynomials::Polynomial, generate::polynomials::Commit, setup::PublicKey};
 use ark_ff::{Field, PrimeField, UniformRand, Zero}; 
 use ark_ec::{CurveGroup, PrimeGroup,pairing::Pairing};
 use ark_std::rand::Rng;
 use ark_bls12_381::{Fr, G1Projective as G1,Bls12_381, G2Projective as G2};
 
 
-pub fn verify_poly(pk: &PublicKey, C: G1, poly: &Polynomial) -> bool {
-    let c_verify = poly.commit(pk);
-    C == c_verify
+pub fn verify_poly(pk: &PublicKey,C: &G1, poly: &Polynomial) -> bool {
+    let c_verify = poly.coeffs.iter()
+    .zip(pk.pks.iter())
+    .map(|(coeff, base)| {
+        *base * *coeff
+    })
+    .sum::<G1>();
+    *C == c_verify
 }
 
 
-pub fn verify_eval(pk: &PublicKey, C: G1, commit: &Commit) -> bool {
+pub fn verify_eval(pk: &PublicKey, C: &G1, commit: &Commit) -> bool {
     let x = commit.x;
     let y = commit.y;
     let witness = commit.witness;
