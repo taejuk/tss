@@ -6,7 +6,6 @@ use structopt::StructOpt;
 use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::Keygen;
 use round_based::async_runtime::AsyncProtocol;
 
-use tss::client;
 use tss::client::join_computation;
 
 #[derive(Debug, StructOpt)]

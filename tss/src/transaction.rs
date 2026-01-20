@@ -9,6 +9,12 @@ use ethers::types::transaction::eip2718::TypedTransaction;
 use ethers::utils::keccak256;
 use k256::ecdsa::VerifyingKey;
 
+use ethers::utils::rlp::Rlp;
+use ethers::types::Transaction;
+use ethers::utils::rlp::Decodable;
+
+// 모두가 같은 서명을 해야 한다.
+
 pub async fn make_transaction(provider: &Provider<Http>,_from:&str, _to: &str, _ether: &str) -> Result<Eip1559TransactionRequest> {
     let from = Address::from_str(_from).context("Error: convert from address")?;
     let to = Address::from_str(_to).context("Error: convert to address")?;
@@ -33,7 +39,6 @@ pub async fn make_transaction(provider: &Provider<Http>,_from:&str, _to: &str, _
 
     Ok(tx)
 }
-// 모두가 같은 서명을 해야 한다.
 pub async fn make_transaction_fixed_gas(provider: &Provider<Http>,_from:&str, _to: &str, _ether: &str) -> Result<Eip1559TransactionRequest> {
     let from = Address::from_str(_from).context("Error: convert from address")?;
     let to = Address::from_str(_to).context("Error: convert to address")?;
@@ -70,10 +75,6 @@ pub fn get_sighash_to_sign(tx_request: Eip1559TransactionRequest) -> Result<Stri
     Ok(sighash)
 }
 
-use ethers::utils::rlp::Rlp; // RLP 디코더
-use ethers::types::Transaction; // 서명된 트랜잭션 타입
-use ethers::utils::rlp::Decodable;
-
 pub fn recover_address_from_bytes(signed_tx_bytes: &[u8]) -> Result<Address> {
     // 1. RLP 디코딩 (Bytes -> Transaction 객체)
     // 이 과정에서 바이트 구조가 올바른지 1차 확인이 됩니다.
@@ -92,7 +93,6 @@ pub fn recover_address_from_bytes(signed_tx_bytes: &[u8]) -> Result<Address> {
 pub fn bytes_to_address_string(pubkey_bytes: &[u8]) -> Result<String> {
     
     let uncompressed_bytes = match pubkey_bytes.len() {
-        // Case A: 이미 비압축 (65바이트) - 0x04로 시작하는지 확인
         65 => {
             if pubkey_bytes[0] != 0x04 {
                 bail!("Error: from format")
@@ -100,7 +100,6 @@ pub fn bytes_to_address_string(pubkey_bytes: &[u8]) -> Result<String> {
             pubkey_bytes.to_vec()
         },
         
-        // Case B: 압축된 키 (33바이트) - 수학적으로 압축 해제
         33 => {
             let key = VerifyingKey::from_sec1_bytes(pubkey_bytes)
                 .context("Error: from format")?;

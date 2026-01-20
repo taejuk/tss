@@ -21,12 +21,11 @@ use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::sig
 use round_based::async_runtime::AsyncProtocol;
 use round_based::Msg;
 use curv::elliptic::curves::Secp256k1;
-use tss::client;
 use tss::client::join_computation;
 use dotenv::dotenv;
 use std::env;
 use tss::provider::get_provider;
-use tss::transaction::{bytes_to_address_string, get_sighash_to_sign, get_signature_for_ethereum, make_transaction, make_transaction_fixed_gas, recover_address_from_bytes};
+use tss::transaction::{bytes_to_address_string, get_sighash_to_sign, get_signature_for_ethereum, make_transaction_fixed_gas};
 
 
 #[derive(Debug, StructOpt)]
@@ -64,8 +63,8 @@ async fn main() -> Result<()> {
     
     let tx = make_transaction_fixed_gas(&provider, &from, &args.to, &args.ethers).await?;
     let data_to_sign = get_sighash_to_sign(tx.clone())?;
-    
-    println!("data_to_sign: {}", data_to_sign);
+    // 서명하기 위해 message 변경
+    let message = BigInt::from_str_radix(&data_to_sign,16)?;
     let number_of_parties = args.parties.len();
     
     let (i, incoming, outgoing) = join_computation(args.address.clone(), &format!("{}-offline", args.room))
@@ -87,7 +86,7 @@ async fn main() -> Result<()> {
     
     tokio::pin!(incoming);
     tokio::pin!(outgoing);
-    let message = BigInt::from_str_radix(&data_to_sign,16)?;
+    
     let (signing, partial_signature) = SignManual::new(
         message.clone(),
         completed_offline_stage
@@ -97,7 +96,6 @@ async fn main() -> Result<()> {
 
     let partial_signatures:Vec<_> = incoming.take(number_of_parties-1).map_ok(|msg| msg.body).try_collect().await?;
     let signature = signing.complete(&partial_signatures).context("Error: online stage failed")?;
-    // 검증하는 로직을 추기하자.
     let verify_result = verify(&signature, &key.y_sum_s, &message);
     match verify_result {
         Ok(()) => println!("signature valid!"),
